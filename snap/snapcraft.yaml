@@ -1,0 +1,81 @@
+name: pronterface
+base: core20
+adopt-info: pronterface
+summary: Graphical 3D printer host
+description: |
+  Printrun is a full suite of host interfaces for 3D printers and CNC consisting of
+
+    * printcore, a standalone non-interactive G-Code sender
+    * pronsole, an interactive command-line host
+    * pronterface, a graphical host software with the same functionality as pronsole
+
+  Together with Slic3r they form a powerful 3d printing toolchain.
+
+  This package contains scripts and metadata for pronterface, a graphical 3D
+  printer host.
+
+  To make full use of the sap you need to connect the following interfaces
+
+   - sudo snap connect pronterface:mount-observe
+   - sudo snap connect pronterface:process-control
+   - sudo snap connect pronterface:x11
+
+  You should also enable "experimental hotplug support" using
+
+   - sudo snap set system experimental.hotplug=true
+
+  Now you can plug in your printer and connect the pronterface serial-port interface
+  to it to get access.
+
+grade: stable
+confinement: strict
+compression: lzo
+
+layout:
+  /usr/share/pronterface:
+      bind: $SNAP/usr/share/pronterface
+  /usr/share/pixmaps/pronterface.png:
+      symlink: $SNAP/usr/share/pixmaps/pronterface.png
+
+apps:
+  pronterface:
+    command: usr/bin/pronterface
+    extensions: [ gnome-3-38 ]
+    environment:
+      PYTHONPATH: $PYTHONPATH:$SNAP/usr/lib/python3/dist-packages
+      LD_LIBRARY_PATH: $SNAP/usr/lib/x86_64-linux-gnu/blas:$SNAP/usr/lib/x86_64-linux-gnu/lapack
+    desktop: usr/share/applications/pronterface.desktop
+    plugs:
+      - home
+      - mount-observe
+      - network
+      - network-bind
+      - process-control
+      - screen-inhibit-control
+      - serial-port
+
+parts:
+  pronterface:
+    plugin: nil
+    override-build: |
+      snapcraftctl build
+      VER="$(zcat $SNAPCRAFT_PART_INSTALL/usr/share/doc/pronterface/changelog.Debian.gz | \
+           head -1 | \
+           sed 's/^.*(//;s/).*$//;s/-[0-9]*ubuntu[0-9]*$//')"
+      snapcraftctl set-version $VER
+    stage-packages:
+      - pronterface
+      - slic3r
+  cleanup:
+    after: [ pronterface ]
+    plugin: nil
+    build-snaps: [ gnome-3-38-2004 ]
+    override-prime: |
+      set -eux
+      cd /snap/gnome-3-38-2004/current
+      find . -type f,l -exec rm -f $SNAPCRAFT_PRIME/{} \;
+      for CRUFT in bug lintian man; do
+        rm -rf $SNAPCRAFT_PRIME/usr/share/$CRUFT
+      done
+      find $SNAPCRAFT_PRIME/usr/share/doc/ -type f -not -name 'copyright' -delete
+      find $SNAPCRAFT_PRIME/usr/share -type d -empty -delete
